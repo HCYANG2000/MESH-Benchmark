@@ -1,11 +1,37 @@
 
 # **MESH Dataset - Download and Description**
-## **Dataset**
-The MESH dataset is a large collection of questions and answers that inquire about the presence of different elements in video clips from the television series "The Big Bang Theory." Drawing data from the TVQA+ dataset, it generates over 140,000 questions that revolve around identifying Motion, Person, and Object. These questions are organized into corresponding folders named "Motion," "Person," and "Object" for clarity and ease of access.
+## Benchmark description
+The MESH dataset is a large collection of questions and answers (QAs) that inquire about the presence of hallucination phenomenons in utilizing large vision-language models (LVLMs) in understanding videos.
 
-### **Motion Folder**
+Drawing data from the TVQA+ dataset [1], it generates over 140,000 questions that revolve around identifying three key aspects of human understanding videos: *Setting (objects)*, *Character Appearance* and *Stage (motions)*. We also organize the QA set in these aspects.
 
-The "Motion" folder contains questions related to the motion depicted in the video clips. Within this folder, there are four JSON files:
+### Setting
+
+*Setting* contains questions related to the presence of objects depicted in the video clips. Within this folder, there are two JSON files:
+
+| File      | Description                                                  |      |
+| --------- | ------------------------------------------------------------ | ---- |
+| object    | This file includes questions related to the object depicted in the video clip, all presented in a yes-no format. |      |
+| mc_object | This file includes questions related to the object depicted in the video clip, each question providing four answer choices. |      |
+
+### Character Appearance
+*Character Appearance* contains questions related to the persons and their appearances, such as cloth type and color, depicted in the video clips. 
+
+Within this folder, we provide four granularity for both *yes-no* and *mc* (multiple-choice) format. **Granularity** indicates the number of target person features included in each question within the file. 
+
+| Granularity  | Description                                                  |
+| ------------ | ------------------------------------------------------------ |
+| raw_grain    | In this type of JSON file, three features of the target person are included in the questions: Garment color, Garment type, and Gender. |
+| medium_grain | In this type of JSON file, five features of the target person are included in the questions: Garment color, Garment type, Gender, Garment sleeve, and Glasses. |
+| mixed_grain  | In this type of JSON file, five features of the target person are included in the questions, with the feature being randomly selected from the extracted features. |
+| fine_grain   | In this type of JSON file, all extracted features are included in the questions, with a maximum of eight features being included. |
+
+For example, <u>fine_grain.json</u> contains questions in a fine granularity with *yes-no* format while <u>fine_grain_four.json</u> contains that with *multiple-choices* format.
+
+### Stage
+
+*Stage* contains questions related to the motion depicted in the video clips. We separate the motions containing in the videos into two aspects: talking and other actions. The detailed division is listed below
+
 | File| Description|
 |--|--|
 |action|  This file contains questions related to the motion depicted in the video clip. Questions about sound-related motion are not included, and all questions are in a yes-no format.|
@@ -13,33 +39,8 @@ The "Motion" folder contains questions related to the motion depicted in the vid
 |mc_action|This file holds questions about the motion shown in the video clip. Questions concerning sound-related motion are excluded, with each question offering four answer choices.|
 |mc_talk|This file features questions about the conversations taking place in the video clip, each question providing four answer choices.|
 
-### **Person Folder**
-The "Person" folder contains questions related to the person depicted in the video clips. Within this folder, the JSON files are formatted as **{granularity}{answer_choices}.json**.
 
-**{granularity}** indicates the number of target person features included in each question within the file. There are four distinct types of granularity:
-| Granularity| Description|
-|--|--|
-|raw_grain|In this type of JSON file, three features of the target person are included in the questions: Garment color, Garment type, and Gender.|
-|medium_grain|  In this type of JSON file, five features of the target person are included in the questions: Garment color, Garment type, Gender, Garment sleeve, and Glasses.|
-|mixed_grain|In this type of JSON file, five features of the target person are included in the questions, with the feature being randomly selected from the extracted features.|
-|fine_grain|In this type of JSON file, all extracted features are included in the questions, with a maximum of eight features being included.|
-
-**{answer_choices}** serves as an indicator for the question type as follows:
-
-1. If this part is empty, the questions are in a yes-no format.
-2. If it is **_four**, the questions provide four answer choices.
-
-
-
-### **Object Folder**
-
-The "Object" folder contains questions related to the Object depicted in the video clips. Within this folder, there are two JSON files:
-| File| Description|
-|--|--|
-|object|This file includes questions related to the object depicted in the video clip, all presented in a yes-no format.|
-|mc_object|This file includes questions related to the object depicted in the video clip, each question providing four answer choices.|
-
-## **Annotations**
+## Benchmark Annotations
 Each JSON file contains a list of dicts, each dict has the following entries:
 | Key| Type  | Description|
 |--|--|--|
@@ -68,3 +69,7 @@ A sample of the QA is shown below:
     ]
 }
 ```
+
+## Benchmark Usage
+
+... To be finished
