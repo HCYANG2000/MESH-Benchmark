@@ -30,7 +30,7 @@ Here are the steps involved in generating questions about the presence of differ
 
 ## **Object Dataset**
 Here are the steps involved in generating questions about the presence of different obejects in video clips:
-1. Object Extraction: Objects in the video clips are extracted using TVQA+ bounding box dataset with the Deepseek tool.
+1. **Object Extraction**: Objects in the video clips are extracted using TVQA+ bounding box dataset with the Deepseek tool.
 2. **Scene Location Extraction**: The location of the scene in the video clips is extracted using the Large Language-and-Vision Assistant model.
 3. **Similar Object Generation**: By utilizing the extracted objects and scene locations, objects with similar shapes to the original ones that do not exist in the given place are generated using Deepseek, acting as non-existing objects.
 4. **Question Formulation**: Both existing and non-existing objects are employed to formulate various types of questions related to objects using the Deepseek tool.
