@@ -3,25 +3,25 @@
 ## Benchmark description
 The MESH dataset is a large collection of questions and answers (QAs) that inquire about the presence of hallucination phenomenons in utilizing large vision-language models (LVLMs) in understanding videos.
 
-Drawing data from the TVQA+ dataset (https://nlp.cs.unc.edu/data/jielei/tvqa/tvqa_public_html/download_tvqa_plus.html), it generates over 140,000 questions that revolve around identifying three key aspects of human understanding videos: *Setting (objects)*, *Character Appearance* and *Stage (motions)*. We also organize the QA set in these aspects.
+Drawing data from the TVQA+ dataset (https://nlp.cs.unc.edu/data/jielei/tvqa/tvqa_public_html/download_tvqa_plus.html), it generates over 140,000 questions that revolve around identifying three key aspects of human understanding videos: *Setting (objects)*, *Character* and *Stage (action and dialogues)*. We also organize the QA set in these aspects.
 
 ### Setting
 
-*Setting* contains questions related to the presence of objects depicted in the video clips. Within this folder, there are two JSON files:
+*Setting* contains questions related to the presence of objects depicted in the video clips. This category is called "Setting" because each object in question is closely associated with the setting of the video (check our paper for more detail). Within this folder, there are two JSON files:
 
-| File      | Description                                                  |      |
-| --------- | ------------------------------------------------------------ | ---- |
-| object    | This file includes questions related to the object depicted in the video clip, all presented in a yes-no format. |      |
-| mc_object | This file includes questions related to the object depicted in the video clip, each question providing four answer choices. |      |
+| File      | Description                                                  | 
+| --------- | ------------------------------------------------------------ | 
+| object    | This file includes questions related to the object depicted in the video clip, all presented in a yes-no format. | 
+| mc_object | This file includes questions related to the object depicted in the video clip, each question providing four answer choices. |
 
-### Character Appearance
-*Character Appearance* contains questions related to the persons and their appearances, such as cloth type and color, depicted in the video clips. 
+### Character
+*Character* contains questions related to the persons in the video and their appearances, such as cloth type and color, depicted in the video clips. 
 
 Within this folder, we provide four granularity for both *yes-no* and *mc* (multiple-choice) format. **Granularity** indicates the number of target person features included in each question within the file. 
 
 | Granularity  | Description                                                  |
 | ------------ | ------------------------------------------------------------ |
-| raw_grain    | In this type of JSON file, three features of the target person are included in the questions: Garment color, Garment type, and Gender. |
+| coarse_grain    | In this type of JSON file, three features of the target person are included in the questions: Garment color, Garment type, and Gender. |
 | medium_grain | In this type of JSON file, five features of the target person are included in the questions: Garment color, Garment type, Gender, Garment sleeve, and Glasses. |
 | mixed_grain  | In this type of JSON file, five features of the target person are included in the questions, with the feature being randomly selected from the extracted features. |
 | fine_grain   | In this type of JSON file, all extracted features are included in the questions, with a maximum of eight features being included. |
@@ -30,7 +30,7 @@ For example, <u>fine_grain.json</u> contains questions in a fine granularity wit
 
 ### Stage
 
-*Stage* contains questions related to the motion depicted in the video clips. We separate the motions containing in the videos into two aspects: talking and other actions. The detailed division is listed below
+*Stage* contains questions related to the action and dialogue of characters depicted in the video clips. The detailed division is listed below
 
 | File| Description|
 |--|--|
@@ -40,17 +40,17 @@ For example, <u>fine_grain.json</u> contains questions in a fine granularity wit
 |mc_talk|This file features questions about the conversations taking place in the video clip, each question providing four answer choices.|
 
 
-## Benchmark Annotations
+## Annotations
 Each JSON file contains a list of dicts, each dict has the following entries:
 | Key| Type  | Description|
 |--|--|--|
 |  answer |int  | The index of the answer in the ans_candidates array. For instance, if answer is 2, then the third element in ans_candidates corresponds to the answer.|
-|  video_name |str  | The name of the video clip that accompanies the question. Video names follow the format '{show_name_abbr}_s{season_number}e{episode_number}_seg{segment_number}clip{clip_number}'. For example, 'friends_s06e12_seg02_clip_16' indicates a video clip from season 6, episode 12 of the TV show 'Friends', which is the 16th clip of the 2nd segment. Note that video clips for 'The Big Bang Theory' exclude '{show_name_abbr}' in their names.|
+|  video_name |str  | The name of the video clip that accompanies the question. Video names follow the format 's{season_number}e{episode_number}\_seg{segment_number}\_clip\_{clip_number}'. For example, 's06e12_seg02_clip_16' indicates a video clip from season 6, episode 12 of the TV show, which is the 16th clip of the 2nd segment. |
 |  ans_candidates |list  | Contains the potential answers to the question.|
 |  question |str  | The question being asked.|
-|  label |str  | A field considered not useful.|
+|  label |str  | In setting and character dataset, this field can be omitted. In the stage dataset, this field denote different type of stage and is useful during evaulation (check our paper for stage types).|
 |  focus |str  | A field considered not useful.|
-|  frames |list | Frame annotations associated with the question. For example, [0, 5] denotes frames starting at 0 and ending at 5. The annotation ["80"] signifies frame 80 in relation to the question.|
+|  frames |list | Frame annotations associated with the question. For stage dataset, [[0, 5]] denotes approximately these frames are required to answer the question. For setting and character, the annotation [80, 20, ...] signifies frame 80, 20 and ... are the frames that target object or character appears.|
 
 A sample of the QA is shown below:
 ```json
