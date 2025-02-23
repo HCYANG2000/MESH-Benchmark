@@ -1,0 +1,6 @@
+raw_videos
+Evaluation/work_dirs
+**/__pycache__
+work_dirs
+evaluate.sh
+tmp

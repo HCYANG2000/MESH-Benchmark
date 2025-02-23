@@ -146,3 +146,7 @@ A sample of the QA from ```mc_talk.json``` is shown below:
 ## Benchmark Usage
 
 ... To be finished
+
+```
+python ./Evaluation/qwen_eval_mesh.py --model-path Qwen/Qwen2.5-VL-7B-Instruct --for_get_frames_num 64 --force_sample True --data_path ./raw_videos/ --qa_path ./Character/coarse_grain.json --data_type frames --fixed_length short
+```
