@@ -8,7 +8,7 @@ import os
 import torch
 from tqdm import tqdm
 
-from DataLoader.DataLoader import LNV_VideoFramesDataLoader
+from DataLoader.DataLoader import VideoFramesDataLoader
 
 def parse_args():
     """
@@ -32,29 +32,14 @@ def parse_args():
     return parser.parse_args()
 
 def custom_collate(batch):
-    try:
-        visions_paths = [item[0] for item in batch]
-        answers = [item[1] for item in batch]
-        ans_candidates = [item[2] for item in batch]
-        labels = [item[3] for item in batch]
-        questions = [item[4] for item in batch]
-        data_types = [item[5] for item in batch]
-        data_path = [item[6] for item in batch]
-        return visions_paths, answers, ans_candidates, labels, questions, data_types, data_path
-    except Exception as e:
-        print(e)
-        print('The items in batch:')
-        for item in batch:
-            print(item)
-        return None
-
-def calculate_fps(for_get_frames_num, fixed_length, sample_rate):
-    if fixed_length:
-        return 3 / sample_rate
-    return 60 / for_get_frames_num
+    inputs = [item[0] for item in batch]
+    labels = [item[1] for item in batch]
+    answers = [item[2] for item in batch]
+    qids = [item[3] for item in batch]
+    return inputs, labels, answers, qids
 
 # Preprocess the video qa data into input and answer
-def preprocess_data(examples):
+def preprocess(paths, ans_candidates, question, data_type, extra_args):
     """
     Preprocess the data for the model.
 
@@ -64,30 +49,83 @@ def preprocess_data(examples):
     Returns:
         The preprocessed examples.
     """
-    # Extract the label, answer, question, video_name and ans_candidates from the examples
-    visions_paths, answers, ans_candidates, labels, questions, data_types, data_path = examples[0:7]
     # Preprocess the data as {'prompt': '...', 'label': '...', 'answer': '...', 'video_name': '...'}
     # Prompt is combination of question and answer candidates
-    prompts = []
     prompt_template_1 = "Question: {}\nOptions:"
     prompt_template_2 = "\nPlease select the correct answer ("
-    for i in range(len(questions)):
-        prompt_i = prompt_template_1.format(questions[i])
-        for j in range(len(ans_candidates[i])):
-            prompt_i += f"\n    {chr(65 + j)}. {ans_candidates[i][j]}"
-        prompt_i += prompt_template_2
-        for j in range(len(ans_candidates[i])):
-            prompt_i += chr(65 + j)
-            prompt_i += "/" if j < len(ans_candidates[i]) - 1 else "):\n"
-        prompts.append(prompt_i)
+    prompt = prompt_template_1.format(question)
+    for i in range(len(ans_candidates)):
+        prompt += f"\n    {chr(65 + i)}. {ans_candidates[i]}"
+    prompt += prompt_template_2
+    for i in range(len(ans_candidates)):
+        prompt += chr(65 + i)
+        prompt += "/" if i < len(ans_candidates) - 1 else "):\n"
 
+    def calculate_fps(for_get_frames_num, fixed_length, sample_rate):
+        if fixed_length:
+            return 3 / sample_rate
+        return 60 / for_get_frames_num
+    
+    if extra_args['system_prompt'] != "None":
+        messages = [
+            {
+                "role": "system",
+                "content": [
+                    {"type": "text", "text": extra_args['system_prompt']},
+                ],
+            },
+        ]
+    else:
+        messages = []
+    
+    if extra_args['input_image'] == 'True':
+        messages.append(
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "video",
+                        "video": paths,
+                    },
+                    {"type": "text", "text": prompt},
+                ],
+            }
+        )
+    else:
+        messages.append(
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                ],
+            }
+        )
+
+    processor = extra_args['model_processor']
+
+    text = processor.apply_chat_template(
+        messages, tokenize=False, add_generation_prompt=True
+    )
+    
+    # Process the vision info
+    image_inputs, video_inputs = process_vision_info(messages)
+
+    # Preparation for inference
+    inputs = processor(
+        text=[text],
+        images=image_inputs,
+        videos=video_inputs,
+        fps=calculate_fps(extra_args['for_get_frames_num'], extra_args["fixed_length"], extra_args['sample_rate']),
+        padding=True,
+        return_tensors="pt",
+    )
     # Return the preprocessed data
-    return visions_paths, prompts, labels, answers, data_path
+    return inputs
 
 
 def run_inference(args):
     """
-    Run inference on ActivityNet QA DataSet using the Video-ChatGPT model.
+    Run inference on MESH DataSet using the Qwen2.5VL model.
 
     Args:
         args: Command-line arguments.
@@ -142,78 +180,47 @@ def run_inference(args):
     # TODO: Allow batch inference
     data_loader = None
     batch_size = 1
+    data_process_arguments = {
+        'for_get_frames_num': args.for_get_frames_num, 
+        'force_sample': args.force_sample, 
+        'data_type': args.data_type, 
+        'return_type': 'path', 
+        'sample_rate': args.sample_rate, 
+        'model_processor': processor, 
+        'input_image': args.input_image,
+        'fixed_length': args.fixed_length,
+        'system_prompt': args.system_prompt
+        }
     data_loader_kwargs = {
         'annotation_path': args.qa_path,
         'data_path': args.data_path,
-        'arguments': {'for_get_frames_num': args.for_get_frames_num, 'force_sample': args.force_sample, 'data_type': args.data_type, 'return_type': 'path', 'sample_rate': args.sample_rate},
         'batch_size': batch_size,
         'num_workers': 4,
         'pin_memory': True,
         'shuffle': False,
-        'preprocessor': None,
-        'collate_fn': custom_collate,
+        'preprocess': preprocess,
+        'extra_arguments': data_process_arguments,
+        'collate_fn': custom_collate
     }
-
-    if args.fixed_length:
-        data_loader_kwargs['arguments']['fixed_length'] = args.fixed_length
-
     if args.data_type == "video" or args.data_type == "frames":
-        data_loader = LNV_VideoFramesDataLoader(**data_loader_kwargs)
+        data_loader = VideoFramesDataLoader(**data_loader_kwargs)
     else:
         raise ValueError("Data type not supported.")
 
     # import pdb;pdb.set_trace()
     for batch in tqdm(data_loader):
-        if batch == None:
-            continue
-        visions_paths, prompts, labels, answers, data_path = preprocess_data(batch)
-        visions_paths = visions_paths if args.input_image == 'True' else None
-        visions_path, prompt, label, answer, data_path = visions_paths[0], prompts[0], labels[0], answers[0], data_path[0]
-
-        # Store the sample
-        sample_set = {"data_path": data_path, "A": answer, "label": label}
-        # Prepare the messages
-        messages = [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "video",
-                        "video": visions_path,
-                    },
-                    {"type": "text", "text": prompt},
-                ],
-            }
-        ]
-        # Preparation for inference
-        text = processor.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True
-        )
-        if args.system_prompt != "None":
-            text = text.replace("You are a helpful assistant.", args.system_prompt)
-        # Record the prompt
-        sample_set["prompt"] = text
-        # Process the vision info
-        image_inputs, video_inputs = process_vision_info(messages)
-        inputs = processor(
-            text=[text],
-            images=image_inputs,
-            videos=video_inputs,
-            fps=calculate_fps(args.for_get_frames_num, args.fixed_length, args.sample_rate),
-            padding=True,
-            return_tensors="pt",
-        )
-        inputs = inputs.to("cuda")
-
+        inputs, labels, answers, qids = batch    
+        input, label, answer, qid = inputs[0], labels[0], answers[0], qids[0]
+        input = input.to("cuda")
         with torch.inference_mode():
-                generated_ids = model.generate(**inputs, max_new_tokens=128)
+                generated_ids = model.generate(**input, max_new_tokens=128)
         generated_ids_trimmed = [
-            out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+            out_ids[len(in_ids) :] for in_ids, out_ids in zip(input.input_ids, generated_ids)
         ]
         output_text = processor.batch_decode(
             generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
         )
-        sample_set["pred"] = output_text[0]
+        sample_set = {'pred': output_text[0], 'label': label, 'answer': answer, 'id': qid}
         ans_file.write(json.dumps(sample_set) + ",\n")
         ans_file.flush()
 

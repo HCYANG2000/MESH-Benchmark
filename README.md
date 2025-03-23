@@ -145,8 +145,72 @@ A sample of the QA from ```mc_talk.json``` is shown below:
 
 ## Benchmark Usage
 
-... To be finished
+### Data Preparation
+
+Evaluation of model requires qa pairs and video data. The qa pairs have been placed in ```data/QA``` according to their categories. To download the video data, you need to send application according to the instruction in official website of TVQA dataset (https://nlp.cs.unc.edu/data/jielei/tvqa/tvqa_public_html/download_tvqa_plus.html) to get the link. After you download the TVQA video, you can find a subfolder call ```bbt_frames```, which contains the required video frames. Finally, rename the ```bbt_frames``` as ```raw_videos``` and move it to ```data/```. The final files structure should be like:
 
 ```
-python ./Evaluation/qwen_eval_mesh.py --model-path Qwen/Qwen2.5-VL-7B-Instruct --for_get_frames_num 64 --force_sample True --data_path ./raw_videos/ --qa_path ./Character/coarse_grain.json --data_type frames --fixed_length short
+MESH-Benchmark/
+|–– Evaluation/
+|   |-- DataLoader/
+|   |-- qwen_eval_mesh.py
+|   |-- ...
+|–– data/
+|   |–– raw_videos/
+|       |-- s01e01_seg01_clip_00/
+|           |-- 00001.jpg
+|           |-- 00002.jpg
+|           |-- 00003.jpg
+|           |-- ...
+|       |-- s01e01_seg01_clip_01/
+|       |-- s01e01_seg01_clip_02/
+|       |-- ...
+|   |-- QA/
+|       |-- Character/
+|           |-- coarse_grain_four.json
+|           |-- coarse_grain.json
+|           |-- ...
+|       |-- Setting/
+|           |-- object.json
+|           |-- mc_object.json
+|       |-- Stages/
+|           |-- action.json
+|           |-- mc_action.json
+|           |-- ...
+|–– README.md
+|–– ...
+```
+
+### Arguments
+
+All the commands below following fixed format like:
+
+```
+python ./Evaluation/[EvaluationScript].py --model-path [ModelPath] --for_get_frames_num [UniformlySampledFramesNumber] --force_sample [ForceSampleIfThereIsNoEnoughFrames] --data_path data/raw_videos/ --qa_path data/QA/[PathToQAPairs] --data_type frames --fixed_length [FixedLengthType]
+```
+
+**EvaluationScript**: Different models or different implementation have different python script, for example ```qwen_eval_mesh_vllm``` is for Qwen2.5VL with vllm implementation. Please refer to next section for more detail and choose the python script accordingly.
+
+**ModelPath**: Model's path in huggingace or local directory, for example ```Qwen/Qwen2.5-VL-7B-Instruct```.
+
+**UniformlySampledFramesNumber**: Number of frames that are uniformly sampled from one video, for example, ```32```. If the *FixedLengthType* is empty, then the script will uniformly sample frames from video according to this argument. If the *FixedLengthType* is not empty, then this argument will be ignored.
+
+**ForceSampleIfThereIsNoEnoughFrames**: When the *FixedLengthType* is empty and *UniformlySampledFramesNumber* exceeds the total number of frames in the video, if this argument is ```True```, then the sample frames will be duplicated to guarantee the sampled frames number is equal to *UniformlySampledFramesNumber*, othervise, the script just returns all the frames in the video.
+
+**PathToQAPairs**: Path to the QA set for evaluation, for example, ```Character/coarse_grain.json```. Different QA sets and their feature are introduced in the *Annotations* Section. You can choose any QA sets that you are interested in.
+
+**FixedLengthType**: 
+
+### Qwen2.5VL
+
+Following the instruction in Qwen2.5VL official repository (https://github.com/QwenLM/Qwen2.5-VL) to install the conda environment. Then, run the following command to evaluate Qwen2.5VL 7B model using huggingface transformer:
+
+```
+python ./Evaluation/qwen_eval_mesh.py --model-path Qwen/Qwen2.5-VL-7B-Instruct --for_get_frames_num 64 --force_sample True --data_path data/raw_videos/ --qa_path data/QA/Character/coarse_grain.json --data_type frames --fixed_length short
+```
+
+If you prefer vllm, 
+
+```
+python ./Evaluation/qwen_eval_mesh_vllm.py --model-path Qwen/Qwen2.5-VL-7B-Instruct --for_get_frames_num 64 --force_sample True --data_path data/raw_videos/ --qa_path data/QA/Character/coarse_grain.json --data_type frames --fixed_length short --tensor_parallel_size 1
 ```
