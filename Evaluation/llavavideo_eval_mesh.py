@@ -1,12 +1,14 @@
 import argparse
-
+import torch
+from llava.model.builder import load_pretrained_model
+from llava.mm_utils import get_model_name_from_path, process_images, tokenizer_image_token
+from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN, IGNORE_INDEX
+from llava.conversation import conv_templates, SeparatorStyle
+from torch.nn.utils.rnn import pad_sequence
 import json
-from transformers import Qwen2_5_VLForConditionalGeneration, AutoTokenizer, AutoProcessor
-from qwen_vl_utils import process_vision_info
+from tqdm import tqdm
 import warnings
 import os
-import torch
-from tqdm import tqdm
 
 from DataLoader.DataLoader import VideoFramesDataLoader
 
@@ -20,14 +22,12 @@ def parse_args():
     parser.add_argument("--model-path", type=str, default="facebook/opt-350m")
     parser.add_argument("--for_get_frames_num", type=int, default=4)
     parser.add_argument("--force_sample", type=lambda x: (str(x).lower() == 'true'), default=False)
-    parser.add_argument("--tokens_per_image", type=int, default=None)
     # Remove the video path and prompt argument and add the data path, data type, qa path arguments
     parser.add_argument("--data_path", type=str, help="Path to the data directory.", required=True)
     parser.add_argument("--data_type", type=str, help="Type of data to process.", required=True)
     parser.add_argument("--qa_path", type=str, help="Path to the QA file.", required=True)
     parser.add_argument("--input_image", type=str, help="Whether input the image data.", default='True')
-    parser.add_argument("--system_prompt", type=str, help="The system prompt of input.", default="None")
-    parser.add_argument("--fixed_length", type=str, help="Fixed video length.", default=None)
+    parser.add_argument("--fixed_length", type=str, help="Fixed video length around one given frame.", default=None)
     parser.add_argument("--sample_rate", type=int, help="Sample rate for video frames.", default=3)
     return parser.parse_args()
 
@@ -39,7 +39,7 @@ def custom_collate(batch):
     return inputs, labels, answers, qids
 
 # Preprocess the video qa data into input and answer
-def preprocess(paths, ans_candidates, question, data_type, extra_args):
+def preprocess(vision, ans_candidates, question, data_type, extra_args):
     # Preprocess the video data and prompt into input
     # Prompt is combination of question and answer candidates
     prompt_template_1 = "Question: {}\nOptions:"
@@ -52,113 +52,68 @@ def preprocess(paths, ans_candidates, question, data_type, extra_args):
         prompt += chr(65 + i)
         prompt += "/" if i < len(ans_candidates) - 1 else "):\n"
 
-    def calculate_fps(for_get_frames_num, fixed_length, sample_rate):
-        if fixed_length:
-            return 3 / sample_rate
-        return 60 / for_get_frames_num
-    
-    if extra_args['system_prompt'] != "None":
-        messages = [
-            {
-                "role": "system",
-                "content": [
-                    {"type": "text", "text": extra_args['system_prompt']},
-                ],
-            },
-        ]
+    if extra_args["input_image"] == 'True':
+        # preprocess the video data
+        preprocessor = extra_args['model_processor']
+        tensor = preprocessor.preprocess(vision, return_tensors="pt")["pixel_values"].half()
     else:
-        messages = []
-    
-    if extra_args['input_image'] == 'True':
-        messages.append(
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "video",
-                        "video": paths,
-                    },
-                    {"type": "text", "text": prompt},
-                ],
-            }
-        )
-    else:
-        messages.append(
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                ],
-            }
-        )
+        vision = None
 
-    processor = extra_args['model_processor']
+    if args.input_image == 'True':
+        prompt = f"{DEFAULT_IMAGE_TOKEN}\n" + prompt
 
-    text = processor.apply_chat_template(
-        messages, tokenize=False, add_generation_prompt=True
-    )
-    
-    # Process the vision info
-    image_inputs, video_inputs = process_vision_info(messages)
+    conv = conv_templates["qwen_1_5"].copy()
+    conv.append_message(conv.roles[0], prompt)
+    conv.append_message(conv.roles[1], None)
+    prompt = conv.get_prompt()
 
-    # Preparation for inference
-    inputs = processor(
-        text=[text],
-        images=image_inputs,
-        videos=video_inputs,
-        fps=calculate_fps(extra_args['for_get_frames_num'], extra_args["fixed_length"], extra_args['sample_rate']),
-        padding=True,
-        return_tensors="pt",
-    )
+    tokenizer = extra_args['model_tokenizer']
+            
+    input_ids = tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt").unsqueeze(0)
+
+    image_sizes = [frame.numel() for frame in tensor]
+
+    # Define the modality according to data type
+    modalities = "video"
+
     # Return the preprocessed data
-    return inputs
+    return {'input_ids': input_ids, 'tensor': tensor, 'image_sizes': image_sizes, 'modalities': modalities}
 
 
 def run_inference(args):
     """
-    Run inference on MESH DataSet using the Qwen2.5VL model.
-
     Args:
         args: Command-line arguments.
     """
+    if args.fixed_length is not None and 'final' not in args.qa_path:
+        raise ValueError("Fixed length is only supported for final dataset.")
+    
     if args.fixed_length is not None:
-        print('Since you specified fixed length, the for_get_frames_num argument will be ignored.')
+        print('Since you specified fixed length, the for_get_frames_num will be ignored.')
 
     if args.sample_rate != 3:
         print('You are using a sample rate other than 3, which will only work for the action dataset.')
         print('Sample rate will only work if you specify fixed length as well.')
-
     # Initialize the model
     warnings.filterwarnings("ignore")
-    model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-        "Qwen/Qwen2.5-VL-7B-Instruct",
-        torch_dtype=torch.bfloat16,
-        attn_implementation="flash_attention_2",
-        device_map="auto",
-    )
+    device_map = "auto"
+    tokenizer, model, image_processor, max_length = load_pretrained_model(args.model_path, None, "llava_qwen", device_map=device_map, attn_implementation="sdpa")
     model.eval()
-
-    # Init the processor
-    if args.tokens_per_image:
-        min_pixels = args.tokens_per_image*28*28
-        max_pixels = args.tokens_per_image*28*28
-        processor = AutoProcessor.from_pretrained(args.model_path, min_pixels=min_pixels, max_pixels=max_pixels)
-    else:
-        processor = AutoProcessor.from_pretrained(args.model_path)
 
     # Create the output directory if it doesn't exist
     output_dir = None
-    if args.fixed_length:
-        # if the fixed length is set, then the for_get_frames_num will be ignored
-        output_dir = os.path.join('work_dirs', args.model_path.split('/')[-1] + '-' + str(args.fixed_length), args.data_type)
-    else:  
+    if args.fixed_length is not None:
+        print('Since you specified fixed length, the for_get_frames_num will be ignored.')
+        output_dir = os.path.join('work_dirs', args.model_path.split('/')[-1] + '-' + args.fixed_length, args.data_type)
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+    else:
         output_dir = os.path.join('work_dirs', args.model_path.split('/')[-1] + '-' + str(args.for_get_frames_num), args.data_type)
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
 
     # Set the output file name
     output_name = 'qa' + '_'+ args.qa_path.split('/')[-1][:-5]
-    output_name += '_system' if args.system_prompt != "None" else ''
     output_name += '_' + args.input_image if args.input_image == 'False' else ''
 
     # Set the output file path
@@ -167,20 +122,21 @@ def run_inference(args):
     ans_file.write('[\n')
 
     # Load the QA data
-    # The batch size can only be 1
-    # TODO: Allow batch inference
+    # The batch_size can only be 1
+    # TODO: support batch inference
     data_loader = None
     batch_size = 1
     data_process_arguments = {
         'for_get_frames_num': args.for_get_frames_num, 
         'force_sample': args.force_sample, 
         'data_type': args.data_type, 
-        'return_type': 'path', 
+        'return_type': 'tensor', 
         'sample_rate': args.sample_rate, 
-        'model_processor': processor, 
+        'model_processor': image_processor, 
         'input_image': args.input_image,
         'fixed_length': args.fixed_length,
-        'system_prompt': args.system_prompt
+        'system_prompt': args.system_prompt,
+        'model_tokenizer': tokenizer,
         }
     data_loader_kwargs = {
         'annotation_path': args.qa_path,
@@ -193,6 +149,10 @@ def run_inference(args):
         'extra_arguments': data_process_arguments,
         'collate_fn': custom_collate
     }
+
+    if args.fixed_length is not None:
+        data_loader_kwargs['arguments']['fixed_length'] = args.fixed_length
+
     if args.data_type == "video" or args.data_type == "frames":
         data_loader = VideoFramesDataLoader(**data_loader_kwargs)
     else:
@@ -202,16 +162,18 @@ def run_inference(args):
     for batch in tqdm(data_loader):
         inputs, labels, answers, qids = batch    
         input, label, answer, qid = inputs[0], labels[0], answers[0], qids[0]
-        input = input.to("cuda")
         with torch.inference_mode():
-                generated_ids = model.generate(**input, max_new_tokens=128)
-        generated_ids_trimmed = [
-            out_ids[len(in_ids) :] for in_ids, out_ids in zip(input.input_ids, generated_ids)
-        ]
-        output_text = processor.batch_decode(
-            generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
-        )
-        sample_set = {'pred': output_text[0], 'label': label, 'answer': answer, 'id': qid}
+            output_ids = model.generate(
+                input['input_ids'].to("cuda"),
+                images=[input['tensor'].to("cuda")],
+                image_sizes=input['image_sizes'],
+                do_sample=False,
+                temperature=0,
+                max_new_tokens=4096,
+                modalities=input['modalities'],
+            )
+        text_outputs = tokenizer.batch_decode(output_ids, skip_special_tokens=True)
+        sample_set = {'pred': text_outputs, 'label': label, 'answer': answer, 'id': qid}
         ans_file.write(json.dumps(sample_set) + ",\n")
         ans_file.flush()
 

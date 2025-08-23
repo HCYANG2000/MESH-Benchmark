@@ -41,16 +41,6 @@ def custom_collate(batch):
 
 # Preprocess the video qa data into input and answer
 def preprocess(paths, ans_candidates, question, data_type, extra_args):
-    """
-    Preprocess the data for the model.
-
-    Args:
-        examples: The examples to preprocess.
-
-    Returns:
-        The preprocessed examples.
-    """
-
     # Prompt is combination of question and answer candidates
     prompt_template_1 = "Question: {}\nOptions:"
     prompt_template_2 = "\nPlease select the correct answer ("

@@ -183,7 +183,7 @@ MESH-Benchmark/
 
 ### Arguments
 
-All the commands below following fixed format like:
+All the commands below follow fixed format like:
 
 ```
 python ./Evaluation/[EvaluationScript].py --model-path [ModelPath] --for_get_frames_num [UniformlySampledFramesNumber] --force_sample [ForceSampleIfThereIsNoEnoughFrames] --data_path data/raw_videos/ --qa_path data/QA/[PathToQAPairs] --data_type frames --fixed_length [FixedLengthType]
@@ -199,7 +199,7 @@ python ./Evaluation/[EvaluationScript].py --model-path [ModelPath] --for_get_fra
 
 **PathToQAPairs**: Path to the QA set for evaluation, for example, ```Character/coarse_grain.json```. Different QA sets and their feature are introduced in the *Annotations* Section. You can choose any QA sets that you are interested in.
 
-**FixedLengthType**: 
+**FixedLengthType**: Specify the sampling strategy, for example, ```short```, which sample frames from an 8 seconds interval. Different from uniform sampling, it will use the "frames" attribute in the dataset as an anchor and sample frames around this anchor.
 
 ### Qwen2.5VL
 
@@ -209,8 +209,12 @@ Following the instruction in Qwen2.5VL official repository (https://github.com/Q
 python ./Evaluation/qwen_eval_mesh.py --model-path Qwen/Qwen2.5-VL-7B-Instruct --for_get_frames_num 64 --force_sample True --data_path data/raw_videos/ --qa_path data/QA/Character/coarse_grain.json --data_type frames --fixed_length short
 ```
 
-If you prefer vllm, 
+Since Qwen2.5VL has vllm implementation, we recommand vllm for efficient evaluation. You can adjust the ```tensor_parallel_size``` according to your environment.
 
 ```
 python ./Evaluation/qwen_eval_mesh_vllm.py --model-path Qwen/Qwen2.5-VL-7B-Instruct --for_get_frames_num 64 --force_sample True --data_path data/raw_videos/ --qa_path data/QA/Character/coarse_grain.json --data_type frames --fixed_length short --tensor_parallel_size 1
 ```
+
+### LLaVA-Video & LLaVA-OneVision
+
+### InternVL-2.5
