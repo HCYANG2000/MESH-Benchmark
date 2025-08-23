@@ -57,7 +57,7 @@ def preprocess(vision, ans_candidates, question, data_type, extra_args):
         preprocessor = extra_args['model_processor']
         tensor = preprocessor.preprocess(vision, return_tensors="pt")["pixel_values"].half()
     else:
-        vision = None
+        tensor = None
 
     if args.input_image == 'True':
         prompt = f"{DEFAULT_IMAGE_TOKEN}\n" + prompt
@@ -74,7 +74,7 @@ def preprocess(vision, ans_candidates, question, data_type, extra_args):
     image_sizes = [frame.numel() for frame in tensor]
 
     # Define the modality according to data type
-    modalities = "video"
+    modalities = ["video"] * len(vision)
 
     # Return the preprocessed data
     return {'input_ids': input_ids, 'tensor': tensor, 'image_sizes': image_sizes, 'modalities': modalities}
@@ -82,18 +82,18 @@ def preprocess(vision, ans_candidates, question, data_type, extra_args):
 
 def run_inference(args):
     """
+    Run inference on MESH DataSet using the LLaVA-Video model.
+
     Args:
         args: Command-line arguments.
     """
-    if args.fixed_length is not None and 'final' not in args.qa_path:
-        raise ValueError("Fixed length is only supported for final dataset.")
-    
     if args.fixed_length is not None:
         print('Since you specified fixed length, the for_get_frames_num will be ignored.')
 
     if args.sample_rate != 3:
         print('You are using a sample rate other than 3, which will only work for the action dataset.')
         print('Sample rate will only work if you specify fixed length as well.')
+    
     # Initialize the model
     warnings.filterwarnings("ignore")
     device_map = "auto"
@@ -105,12 +105,11 @@ def run_inference(args):
     if args.fixed_length is not None:
         print('Since you specified fixed length, the for_get_frames_num will be ignored.')
         output_dir = os.path.join('work_dirs', args.model_path.split('/')[-1] + '-' + args.fixed_length, args.data_type)
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        
     else:
         output_dir = os.path.join('work_dirs', args.model_path.split('/')[-1] + '-' + str(args.for_get_frames_num), args.data_type)
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
     # Set the output file name
     output_name = 'qa' + '_'+ args.qa_path.split('/')[-1][:-5]
@@ -135,7 +134,6 @@ def run_inference(args):
         'model_processor': image_processor, 
         'input_image': args.input_image,
         'fixed_length': args.fixed_length,
-        'system_prompt': args.system_prompt,
         'model_tokenizer': tokenizer,
         }
     data_loader_kwargs = {
@@ -149,10 +147,6 @@ def run_inference(args):
         'extra_arguments': data_process_arguments,
         'collate_fn': custom_collate
     }
-
-    if args.fixed_length is not None:
-        data_loader_kwargs['arguments']['fixed_length'] = args.fixed_length
-
     if args.data_type == "video" or args.data_type == "frames":
         data_loader = VideoFramesDataLoader(**data_loader_kwargs)
     else:
@@ -163,9 +157,11 @@ def run_inference(args):
         inputs, labels, answers, qids = batch    
         input, label, answer, qid = inputs[0], labels[0], answers[0], qids[0]
         with torch.inference_mode():
+            visions = [input['tensor'].to("cuda")]
+            input_ids = input['input_ids'].to("cuda")
             output_ids = model.generate(
-                input['input_ids'].to("cuda"),
-                images=[input['tensor'].to("cuda")],
+                input_ids,
+                images=visions,
                 image_sizes=input['image_sizes'],
                 do_sample=False,
                 temperature=0,

@@ -59,20 +59,10 @@ def load_frames(video_path, args, frames):
     files = os.listdir(video_path)
     # Sort the files according to the name, which is the frame number
     files.sort(key=lambda x: int(x.split(".")[0]))
-    # For person ablation study only
     if fixed_length:
         if frames is None:
             raise ValueError('Frames not provided')
-        if fixed_length == 'repeat':
-            if type(frames[0]) is list:
-                # Repeat the frame in the middle
-                frame = (frames[0][0] + frames[0][1])//2
-            else:
-                # Repeat the first frame
-                frame = int(frames[0]) - 1
-            files_paths = [os.path.join(video_path, files[i]) for i in [frame] * args['for_get_frames_num']]
-            spare_frames = np.array([load_image(file) for file in files_paths])
-        elif fixed_length == 'flex':
+        if fixed_length == 'flex':
             if type(frames[0]) is list:
                 # cut the frames according to the list provided
                 start_frame = frames[0][0]

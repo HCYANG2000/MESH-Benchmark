@@ -26,7 +26,6 @@ def parse_args():
     parser.add_argument("--data_type", type=str, help="Type of data to process.", required=True)
     parser.add_argument("--qa_path", type=str, help="Path to the QA file.", required=True)
     parser.add_argument("--input_image", type=str, help="Whether input the image data.", default='True')
-    parser.add_argument("--system_prompt", type=str, help="The system prompt of input.", default="None")
     parser.add_argument("--fixed_length", type=str, help="Fixed video length.", default=None)
     parser.add_argument("--sample_rate", type=int, help="Sample rate for video frames.", default=3)
     return parser.parse_args()
@@ -57,17 +56,7 @@ def preprocess(paths, ans_candidates, question, data_type, extra_args):
             return 3 / sample_rate
         return 60 / for_get_frames_num
     
-    if extra_args['system_prompt'] != "None":
-        messages = [
-            {
-                "role": "system",
-                "content": [
-                    {"type": "text", "text": extra_args['system_prompt']},
-                ],
-            },
-        ]
-    else:
-        messages = []
+    messages = []
     
     if extra_args['input_image'] == 'True':
         messages.append(
@@ -149,7 +138,7 @@ def run_inference(args):
     # Create the output directory if it doesn't exist
     output_dir = None
     if args.fixed_length:
-        # if the fixed length is set, then the for_get_frames_num will be ignored
+        print('Since you specified fixed length, the for_get_frames_num will be ignored.')
         output_dir = os.path.join('work_dirs', args.model_path.split('/')[-1] + '-' + str(args.fixed_length), args.data_type)
     else:  
         output_dir = os.path.join('work_dirs', args.model_path.split('/')[-1] + '-' + str(args.for_get_frames_num), args.data_type)
@@ -158,7 +147,6 @@ def run_inference(args):
 
     # Set the output file name
     output_name = 'qa' + '_'+ args.qa_path.split('/')[-1][:-5]
-    output_name += '_system' if args.system_prompt != "None" else ''
     output_name += '_' + args.input_image if args.input_image == 'False' else ''
 
     # Set the output file path
@@ -180,7 +168,6 @@ def run_inference(args):
         'model_processor': processor, 
         'input_image': args.input_image,
         'fixed_length': args.fixed_length,
-        'system_prompt': args.system_prompt
         }
     data_loader_kwargs = {
         'annotation_path': args.qa_path,

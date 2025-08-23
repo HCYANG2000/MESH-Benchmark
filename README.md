@@ -80,7 +80,7 @@ A sample of the QA from ```coarse_grain.json``` is shown below:
     "label": "p",
     "focus": "N/A",
     "frames": [
-        "80"
+        80
     ]
 }
 ```
@@ -203,7 +203,7 @@ python ./Evaluation/[EvaluationScript].py --model-path [ModelPath] --for_get_fra
 
 ### Qwen2.5VL
 
-Following the instruction in Qwen2.5VL official repository (https://github.com/QwenLM/Qwen2.5-VL) to install the conda environment. Then, run the following command to evaluate Qwen2.5VL 7B model using huggingface transformer:
+Following the instruction in Qwen2.5VL official repository (https://github.com/QwenLM/Qwen2.5-VL) to install the conda environment. Then, run the following command to evaluate ```Qwen2.5VL-7B``` model using huggingface transformers:
 
 ```
 python ./Evaluation/qwen_eval_mesh.py --model-path Qwen/Qwen2.5-VL-7B-Instruct --for_get_frames_num 64 --force_sample True --data_path data/raw_videos/ --qa_path data/QA/Character/coarse_grain.json --data_type frames --fixed_length short
@@ -212,9 +212,21 @@ python ./Evaluation/qwen_eval_mesh.py --model-path Qwen/Qwen2.5-VL-7B-Instruct -
 Since Qwen2.5VL has vllm implementation, we recommand vllm for efficient evaluation. You can adjust the ```tensor_parallel_size``` according to your environment.
 
 ```
-python ./Evaluation/qwen_eval_mesh_vllm.py --model-path Qwen/Qwen2.5-VL-7B-Instruct --for_get_frames_num 64 --force_sample True --data_path data/raw_videos/ --qa_path data/QA/Character/coarse_grain.json --data_type frames --fixed_length short --tensor_parallel_size 1
+python ./Evaluation/qwen_eval_mesh_vllm.py --model-path Qwen/Qwen2.5-VL-7B-Instruct --for_get_frames_num 64 --force_sample True --data_path data/raw_videos/ --qa_path data/QA/Character/coarse_grain_four.json --data_type frames --fixed_length short --tensor_parallel_size 1
 ```
 
 ### LLaVA-Video & LLaVA-OneVision
+
+Clone the LLaVA-NeXT official repository (https://github.com/LLaVA-VL/LLaVA-NeXT) to a folder you like and install the conda environment following the instruction. Remember not to delete the repository after installation. Then, run the following command to evaluation ```LLaVA-Video-7B``` model using huggingface transformers:
+
+```
+python ./Evaluation/llava_eval_mesh.py --model-path lmms-lab/LLaVA-NeXT-Video-7B-Qwen2 --for_get_frames_num 64 --force_sample True --data_path data/raw_videos/ --qa_path data/QA/Setting/mc_object.json --data_type frames --fixed_length short
+```
+
+Because the ```LLaVA-OV``` share the same architecture as ```LLaVA-Video```, after you follow the instruction and run ```LLaVA-Video``` successfully, you can run ```LLaVA-OV-7B``` by simply change the model name:
+
+```
+python ./Evaluation/llava_eval_mesh.py --model-path lmms-lab/llava-onevision-qwen2-7b-ov --for_get_frames_num 64 --force_sample True --data_path data/raw_videos/ --qa_path data/QA/Setting/object.json --data_type frames --fixed_length short
+```
 
 ### InternVL-2.5
