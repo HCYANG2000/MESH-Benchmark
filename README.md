@@ -230,3 +230,15 @@ python ./Evaluation/llava_eval_mesh.py --model-path lmms-lab/llava-onevision-qwe
 ```
 
 ### InternVL-2.5
+
+Create a new conda environment and install ```transformers>=4.37.2```, or use an existing environment with ```transformers>=4.37.2```. Then, run the following command to evaluate ```InternVL2.5-8B``` model using huggingface transformers:
+
+```
+python ./Evaluation/internvl_eval_mesh.py --model-path OpenGVLab/InternVL2_5-8B --for_get_frames_num 64 --force_sample True --data_path data/raw_videos/ --qa_path data/QA/Stage/mc_action.json --data_type frames --fixed_length long
+```
+
+Since InternVL is implemented in ```lmdeploy``` , you can try it to test whether it provides more efficient evaluation in your settings. You can adjust the ```tensor_parallel_size``` according to your environment.
+
+```
+python ./Evaluation/internvl_eval_mesh_lmdeploy.py --model-path OpenGVLab/InternVL2_5-8B --for_get_frames_num 64 --force_sample True --data_path data/raw_videos/ --qa_path data/QA/Stage/action.json --data_type frames --fixed_length long
+```

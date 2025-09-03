@@ -93,7 +93,7 @@ def preprocess(paths, ans_candidates, question, data_type, extra_args):
     if extra_args["input_image"] == 'True':
         # preprocess the video data
         preprocessor = extra_args['model_processor']
-        visions = torch.stack([preprocessor(Image.open(path)) for path in paths]).to(torch.bfloat16).cuda()
+        visions = torch.stack([preprocessor(Image.open(path)) for path in paths]).to(torch.bfloat16)
         num_patches_list = [1 for _ in range(visions.shape[0])]
     else:
         visions = None
@@ -167,7 +167,7 @@ if __name__ == "__main__":
         'model_processor': transform,
         'input_image': args.input_image,
         'fixed_length': args.fixed_length,
-        }
+    }
     data_loader_kwargs = {
         'annotation_path': args.qa_path,
         'data_path': args.data_path,
@@ -175,8 +175,8 @@ if __name__ == "__main__":
         'num_workers': 4,
         'pin_memory': True,
         'shuffle': False,
-        'preprocessor': preprocess,
-        'extra_augments': data_process_arguments,
+        'preprocess': preprocess,
+        'extra_arguments': data_process_arguments,
         'collate_fn': custom_collate,
     }
 
@@ -189,9 +189,9 @@ if __name__ == "__main__":
         inputs, labels, answers, qids = batch
         input, label, answer, qid = inputs[0], labels[0], answers[0], qids[0]
 
-        visions = batch["visions"]
-        question = batch["prompt"]
-        num_patches_list = batch["num_patches_list"]
+        visions = input["visions"].cuda()
+        question = input["prompt"]
+        num_patches_list = input["num_patches_list"]
         response = model.chat(tokenizer, visions, question, generation_config,
                                num_patches_list=num_patches_list, history=None, return_history=False)
         sample_set = {'pred': response, 'label': label, 'answer': answer, 'id': qid}
