@@ -201,7 +201,11 @@ python ./Evaluation/[EvaluationScript].py --model-path [ModelPath] --for_get_fra
 
 **FixedLengthType**: Specify the sampling strategy, for example, ```short```, which sample frames from an 8 seconds interval. Different from uniform sampling, it will use the "frames" attribute in the dataset as an anchor and sample frames around this anchor.
 
-### Qwen2.5VL
+### Models
+
+Here we present the installation and evaluation scripts for 4 different models with different framework implementation.
+
+#### Qwen2.5VL
 
 Following the instruction in Qwen2.5VL official repository (https://github.com/QwenLM/Qwen2.5-VL) to install the conda environment. Then, run the following command to evaluate ```Qwen2.5VL-7B``` model using huggingface transformers:
 
@@ -215,7 +219,7 @@ Since Qwen2.5VL has vllm implementation, we recommand vllm for efficient evaluat
 python ./Evaluation/qwen_eval_mesh_vllm.py --model-path Qwen/Qwen2.5-VL-7B-Instruct --for_get_frames_num 64 --force_sample True --data_path data/raw_videos/ --qa_path data/QA/Character/coarse_grain_four.json --data_type frames --fixed_length short --tensor_parallel_size 1
 ```
 
-### LLaVA-Video & LLaVA-OneVision
+#### LLaVA-Video & LLaVA-OneVision
 
 Clone the LLaVA-NeXT official repository (https://github.com/LLaVA-VL/LLaVA-NeXT) to a folder you like and install the conda environment following the instruction. Remember not to delete the repository after installation. Then, run the following command to evaluation ```LLaVA-Video-7B``` model using huggingface transformers:
 
@@ -229,7 +233,7 @@ Because the ```LLaVA-OV``` share the same architecture as ```LLaVA-Video```, aft
 python ./Evaluation/llava_eval_mesh.py --model-path lmms-lab/llava-onevision-qwen2-7b-ov --for_get_frames_num 64 --force_sample True --data_path data/raw_videos/ --qa_path data/QA/Setting/object.json --data_type frames --fixed_length short
 ```
 
-### InternVL-2.5
+#### InternVL-2.5
 
 Create a new conda environment and install ```transformers>=4.37.2```, or use an existing environment with ```transformers>=4.37.2```. Then, run the following command to evaluate ```InternVL2.5-8B``` model using huggingface transformers:
 
@@ -240,5 +244,76 @@ python ./Evaluation/internvl_eval_mesh.py --model-path OpenGVLab/InternVL2_5-8B 
 Since InternVL is implemented in ```lmdeploy``` , you can try it to test whether it provides more efficient evaluation in your settings. You can adjust the ```tensor_parallel_size``` according to your environment.
 
 ```
-python ./Evaluation/internvl_eval_mesh_lmdeploy.py --model-path OpenGVLab/InternVL2_5-8B --for_get_frames_num 64 --force_sample True --data_path data/raw_videos/ --qa_path data/QA/Stage/action.json --data_type frames --fixed_length long
+python ./Evaluation/internvl_eval_mesh_lmdeploy.py --model-path OpenGVLab/InternVL2_5-4B --for_get_frames_num 64 --force_sample True --data_path data/raw_videos/ --qa_path data/QA/Stage/action.json --data_type frames --fixed_length long --tensor_parallel_size 1
+```
+
+### Grading
+
+After the evaluation result is saved in ```work_dirs```, you can use our automatical grading program to calculate the model's grade on the corresponding benchmark category. We recommend you to arrange the results like:
+
+```
+MESH-Benchmark/
+|–– results/
+|   |–– Qwen2.5-VL-7B/
+|       |-- character/
+|           |-- short
+|               |-- bc
+|                   |-- coarse_grain
+|                       |-- qa_coarse_grain.json
+|                   |-- medium_grain
+|                   |-- mixed_grain
+|                   |-- fine_grain
+|               |-- mc
+|                   |-- coarse_grain
+|                       |-- qa_coarse_grain_four.json
+|                   |-- ...
+|           |-- medium
+|               |-- bc
+|               |-- mc
+|           |-- long
+|               |-- ...
+|           |-- original
+|               |-- ...
+|       |-- setting
+|           |-- bc
+|               |-- qa_object.json
+|           |-- mc
+|               |-- qa_mc_object.json
+|       |-- stage
+|           |-- action
+|               |-- mc
+|                   |-- qa_mc_action.json
+|               |-- bc
+|                   |-- qa_action.json
+|           |-- talk
+|               |-- mc
+|                   |-- qa_mc_talk.json
+|               |-- bc
+|                   |-- qa_talk.json
+```
+
+Because different category has different settings, please follow the instruction below and use the correct grading program:
+
+1. Binary choice problem of Setting category and Character category: ```Evaluation/Grading/grading_setting_character_bc.py```
+
+```
+python Evaluation/Grading/grading_setting_character_bc.py --path results/Qwen2.5-VL-7B/setting/bc/qa_object.json
+```
+
+2. Multiple choice problem of Setting category and Character category: ```Evaluation/Grading/grading_setting_character_mc.py```
+
+```
+python Evaluation/Grading/grading_setting_character_mc.py --path results/Qwen2.5-VL-7B/character/mc/short/coarse_grain/qa_coarse_grain_four.json
+```
+
+3. Binary choice problem of Stage category: ```Evaluation/Grading/grading_stage_bc.py```
+
+```
+python Evaluation/Grading/grading_stage_bc.py --path results/Qwen2.5-VL-7B/stage/action/bc/qa_action.json
+```
+
+4. Multiple choice problem of stage category: ```Evaluation/Grading/grading_stage_mc.py```
+
+```
+python Evaluation/Grading/grading_stage_mc.py --path results/Qwen2.5-VL-7B/stage/action/mc/qa_mc_action.json
 ```

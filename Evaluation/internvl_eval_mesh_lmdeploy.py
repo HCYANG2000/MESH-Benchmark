@@ -157,7 +157,7 @@ if __name__ == "__main__":
         input, label, answer, qid = inputs[0], labels[0], answers[0], qids[0]
         messages = input["messages"]
         response = pipe(messages, top_k=1)
-        sample_set = {'pred': response, 'label': label, 'answer': answer, 'id': qid}
+        sample_set = {'pred': response.text, 'label': label, 'answer': answer, 'id': qid}
         ans_file.write(json.dumps(sample_set) + ",\n")
         ans_file.flush()
 

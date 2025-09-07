@@ -168,7 +168,7 @@ def run_inference(args):
                 max_new_tokens=4096,
                 modalities=input['modalities'],
             )
-        text_outputs = tokenizer.batch_decode(output_ids, skip_special_tokens=True)
+        text_outputs = tokenizer.batch_decode(output_ids, skip_special_tokens=True)[0]
         sample_set = {'pred': text_outputs, 'label': label, 'answer': answer, 'id': qid}
         ans_file.write(json.dumps(sample_set) + ",\n")
         ans_file.flush()
