@@ -121,7 +121,7 @@ if __name__ == "__main__":
     ans_file.write('[\n')
 
     # Load the QA data
-    # The batch_size can only be 1!!!
+    # The batch_size can only be 1
     # TODO: support batch inference
     data_loader = None
     batch_size = 1

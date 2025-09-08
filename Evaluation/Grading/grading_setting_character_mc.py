@@ -60,11 +60,9 @@ def answer_parser(raw_pred: str):
     if not occurrences:
         return None
 
-    # Disambiguate: accept only if exactly one distinct letter matched
-    matched_letters = list(occurrences.keys())
-    if len(matched_letters) == 1:
-        return matched_letters[0]
-    return None
+    # Disambiguate: if multiple records, pick earliest
+    occurrences = sorted(occurrences.items(), key=lambda x: x[1])
+    return occurrences[0][0]
 
 if __name__ == '__main__':
     args = parse_args()

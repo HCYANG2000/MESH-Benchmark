@@ -70,11 +70,9 @@ def answer_parser(raw_pred: str):
     if not occurrences:
         return None
 
-    # Disambiguate: accept only if exactly one distinct letter matched
-    matched_letters = list(occurrences.keys())
-    if len(matched_letters) == 1:
-        return matched_letters[0]
-    return None
+    # Disambiguate: if multiple records, pick earliest
+    occurrences = sorted(occurrences.items(), key=lambda x: x[1])
+    return occurrences[0][0]
 
 answer_map = {'A': 0, 'B': 1, 'C': 2, 'D': 3}
 
@@ -86,19 +84,9 @@ if __name__ == '__main__':
 
     path = '/'.join(path.split('/')[:-1]) + '/'
 
-    # Read the qa.json file
-    try:
-        with open(path + file) as f:
-            data = json.load(f)
-    except:
-        with open(path + file,'r+') as f:
-            f.seek(0, 2)
-            f.seek(f.tell() - 5)
-            f.write(']\n')
-        with open(path + file) as f:
-            data = json.load(f)
-    print("Example of a question:")
-    print(data[0])
+    with open(path + file) as f:
+        data = json.load(f)
+
 
     # Initialize the total accuracy, total number of questions for each type
     eov_accuracy = np.zeros(4, dtype=int)
@@ -129,7 +117,7 @@ if __name__ == '__main__':
         # Get the question type
         question_type = data[i]['label']
         # Get the answer
-        answer = data[i]['A']
+        answer = data[i]['answer']
         # Get the predicted answer
         predicted_answer = answer_parser(data[i]['pred'])
         if predicted_answer is None:

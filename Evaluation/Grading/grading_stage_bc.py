@@ -74,14 +74,9 @@ def answer_parser(raw_pred: str):
         illegal_predictions += 1
         return None
 
-    # Disambiguate: accept only if exactly one distinct letter matched
-    if len(occurrences) == 1:
-        letter = next(iter(occurrences.keys()))
-        return 0 if letter == 'A' else 1
-
-    # Multiple distinct cues detected -> ambiguous/illegal
-    illegal_predictions += 1
-    return None
+    # Disambiguate: if multiple records, pick earliest
+    occurrences = sorted(occurrences.items(), key=lambda x: x[1])
+    return 0 if occurrences[0][0] == 'A' else 1
 
 if __name__ == '__main__':
     args = parse_args()
